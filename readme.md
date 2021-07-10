@@ -1,0 +1,1 @@
+- Mergear um basic block === deletar um basic block?
