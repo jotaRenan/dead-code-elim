@@ -103,13 +103,13 @@ namespace {
                 BranchInst *BInst = cast_branch_instruction(Inst);
                 if (!BInst) return;
                 
-                BranchInst->eraseFromParent();
+                BInst->eraseFromParent();
                 // remove basic block que contem a condicao
                 ParentBB->eraseFromParent(); 
-                count_deleted_instructions_on_basic_block_removal(BInst);
+                count_deleted_instructions_on_basic_block_removal(ParentBB);
                 BasicBlocksEliminated++;
 
-                for (BasicBlock *succ : successors(&BInst)) {
+                for (BasicBlock *succ : successors(&ParentBB)) {
                     delete_basic_block(succ->getTerminator());
                 }
             }
