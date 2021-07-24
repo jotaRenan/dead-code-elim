@@ -89,12 +89,14 @@ namespace {
         void delete_basic_block(TerminatorInst *Inst) {
             BasicBlock *ParentBB = Inst->getParent();
             
-            if (!has_single_predecessor(ParentBB)) { // apenas deleta se so ha um predecessor
+            // deleta se so ha um predecessor
+            if (!has_single_predecessor(ParentBB)) { 
                 BranchInst *BInst = cast_branch_instruction(Inst);
                 if (!BInst) return;
                 
                 BranchInst->eraseFromParent();
-                ParentBB->eraseFromParent(); // remove basic block que contem a condicao
+                // remove basic block que contem a condicao
+                ParentBB->eraseFromParent(); 
                 count_deleted_instructions_on_basic_block_removal(BInst);
                 BasicBlocksEliminated++;
 
