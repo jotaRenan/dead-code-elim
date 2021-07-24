@@ -12,18 +12,19 @@ then
     echo Syntax: run_RA file.c
     exit 1
 else
-    CLANG="/Users/fernando/Programs/llvm37/build/bin/clang"
-    OPT="/Users/fernando/Programs/llvm37/build/bin/opt"
-    RANGE_LIB="/Users/fernando/Programs/llvm37/build/lib/RangeAnalysis.dylib"
+    CLANG="../llvm-project/build/bin/clang"
+    OPT="../llvm-project/build/bin/opt"
+    RANGE_LIB="../llvm-project/build/lib/DeadCodeElim.so"
 
     file_name=$1
     base_name=$(basename $1 .c)
     orig_btcd_name="$base_name.orig.bc"
     new_btcd_name="$base_name.rbc"
     vssa_btcd_name="$base_name.vssa.rbc"
+    new_cfg_name="$base_name.new.bc"
 
     # Produce a bytecode file:
-    $CLANG $file_name -o $orig_btcd_name -c -emit-llvm -O1
+    $CLANG $file_name -o $orig_btcd_name -c -emit-llvm -Xclang -disable-O0-optnone
 
     # Convert the bytecode to SSA form, find nice names for variables and
     # break critical edges:
@@ -33,10 +34,10 @@ else
     $OPT -load $RANGE_LIB -vssa $new_btcd_name -o $vssa_btcd_name
 
     # Run the range analysis client
-    $OPT -load $RANGE_LIB -deadCodeElim $vssa_btcd_name -disable-output
+    $OPT -load $RANGE_LIB -deadCodeElim $vssa_btcd_name -o $new_cfg_name -stats 
 
     # Producing a dot file for the vssa version of the bytecode file:
-    $OPT -dot-cfg $vssa_btcd_name -disable-output
+    $OPT -dot-cfg $new_cfg_name -disable-output
 
     # Remove the temporary files produced. We keep the '.s' file if the option
     # -s was passed in the command line.

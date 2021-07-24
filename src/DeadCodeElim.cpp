@@ -24,7 +24,6 @@
 
 using namespace llvm;
 using namespace std;
-// using namespace RangeAnalysis;
 
 STATISTIC(InstructionsEliminated, "Number of instructions eliminated");
 STATISTIC(BasicBlocksEliminated,  "Number of basic blocks entirely eliminated");
@@ -54,14 +53,18 @@ namespace {
         }
 
         void delete_path(Instruction *Inst, int indexTakenPath, int indexNotTakenPath) {
-            BranchInst *BInst = cast_branch_instruction(Inst);
+            BranchInst *BInst = cast_branch_instruction(Inst->getNextNode());
+            cout << "\nverificando delecao";
             if (!BInst) return;
+            cout << "\nindo deletar";
             
             BasicBlock *ParentBB = BInst->getParent();
             BasicBlock *takenPath = BInst->getSuccessor(indexTakenPath);
             BasicBlock *notTakenPath = BInst->getSuccessor(indexNotTakenPath);
             
             notTakenPath->removePredecessor(ParentBB);
+            BranchInst *newBranch = BranchInst::Create(takenPath);
+            ReplaceInstWithInst(BInst, newBranch);
 
             delete_basic_block(notTakenPath->getTerminator());
             merge_basic_blocks(ParentBB, takenPath);
@@ -100,8 +103,7 @@ namespace {
         void delete_basic_block(Instruction *Inst) {
             BasicBlock *ParentBB = Inst->getParent();
             
-            // deleta se so ha um predecessor
-            if (!has_single_predecessor(ParentBB)) { 
+            if (ParentBB->hasNPredecessors(0)) { 
                 BranchInst *BInst = cast_branch_instruction(Inst);
                 if (!BInst) return;
                 
@@ -120,11 +122,12 @@ namespace {
 
         bool runOnFunction(Function &Fun) override {
             InterProceduralRA<Cousot> &ra = getAnalysis<InterProceduralRA<Cousot>>();
-            printf("\n\ncomecando os trabalhos\n\n");
             for (Function::iterator bb = Fun.begin(), bbEnd = Fun.end(); bb != bbEnd; ++bb) {
                 for (BasicBlock::iterator Inst = bb->begin(), IEnd = bb->end(); Inst != IEnd; ++Inst) {
+                    printf("\navaliando instrucao");
                     ICmpInst *I = dyn_cast<ICmpInst>(Inst);
                     if (I) {
+                        printf("\ninstrucao eh de comparacao");
                         handle_compare(I, ra);
                     }
                 }
@@ -140,12 +143,20 @@ namespace {
                 case CmpInst::ICMP_SLT:
                 case CmpInst::ICMP_ULT:
                     // lidar com <
+                    printf("\nLIDANDO COM <");
+                    r1.print(errs());
+                    r2.print(errs());
+                    errs() <<"\n";
                     if (r1.getUpper().slt(r2.getLower())) { // sempre da true entao podemos 
+                        printf("\nSEMPRE DA TRU");
                         // remover o false-branch
                         delete_false_path(ICM);
                     } else if (r1.getLower().sge(r2.getUpper())) { // sempre da false entao podemos
+                        printf("\nSEMPRE DA FALS");
                         // remover o true-branch
                         delete_true_path(ICM);
+                    } else {
+                        printf("\nNEM SEMPRE DA FALS NEM SEMPRE DA TRU");
                     }
                     break;
                 case CmpInst::ICMP_SLE:
@@ -212,6 +223,8 @@ namespace {
                         }
                     }
                     break;
+                default:
+                    printf("\nDefault switch case");
             }
         }
     
