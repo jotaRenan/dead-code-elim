@@ -21,7 +21,8 @@ STATISTIC(BasicBlocksEliminated,  "Number of basic blocks entirely eliminated");
 
 namespace {
     class DeadCodeElim : public FunctionPass {
-        static char ID;
+        public:
+		static char ID;
 
         DeadCodeElim() : FunctionPass(ID) {}
         ~DeadCodeElim() {}
