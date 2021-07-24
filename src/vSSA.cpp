@@ -47,7 +47,7 @@ bool vSSA::runOnFunction(Function &F) {
 }
 
 void vSSA::createSigmasIfNeeded(BasicBlock *BB) {
-  TerminatorInst *ti = BB->getTerminator();
+  Instruction *ti = BB->getTerminator();
   // If the condition used in the terminator instruction is a Comparison
   // instruction:
   // for each operand of the CmpInst, create sigmas, depending on some
@@ -129,7 +129,7 @@ void vSSA::createSigmasIfNeeded(BasicBlock *BB) {
  *  Insert sigmas for the value V;
  *  When sigmas are created, the creation of phis may happen too.
  */
-void vSSA::insertSigmas(TerminatorInst *TI, Value *V) {
+void vSSA::insertSigmas(Instruction *TI, Value *V) {
   // Basic Block of the Terminator Instruction
   BasicBlock *BB = TI->getParent();
 
