@@ -89,7 +89,7 @@ namespace {
             }
         }
 
-        void delete_basic_block(TerminatorInst *Inst) {
+        void delete_basic_block(Instruction *Inst) {
             BasicBlock *ParentBB = Inst->getParent();
             
             // deleta se so ha um predecessor
