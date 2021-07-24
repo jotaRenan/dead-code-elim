@@ -36,7 +36,7 @@ bool vSSA::runOnFunction(Function &F) {
 
   DTw_ = &getAnalysis<DominatorTreeWrapperPass>();
   DT_ = &DTw_->getDomTree();
-  DF_ = &getAnalysis<DominanceFrontier>();
+  DF_ = &getAnalysis<DominanceFrontierWrapperPass>().getDominanceFrontier();
 
   // Iterate over all Basic Blocks of the Function, calling the function that
   // creates sigma functions, if needed
