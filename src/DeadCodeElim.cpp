@@ -120,7 +120,7 @@ namespace {
 
         bool runOnFunction(Function &Fun) override {
             InterProceduralRA<Cousot> &ra = getAnalysis<InterProceduralRA<Cousot>>();
-
+            printf("\n\ncomecando os trabalhos\n\n");
             for (Function::iterator bb = Fun.begin(), bbEnd = Fun.end(); bb != bbEnd; ++bb) {
                 for (BasicBlock::iterator Inst = bb->begin(), IEnd = bb->end(); Inst != IEnd; ++Inst) {
                     ICmpInst *I = dyn_cast<ICmpInst>(Inst);
@@ -129,6 +129,7 @@ namespace {
                     }
                 }
             }
+            printf("\n\nterminando os trabalhos\n\n");
             return true;
         }
 
