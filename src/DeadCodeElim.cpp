@@ -97,7 +97,7 @@ namespace {
                 BranchInst->eraseFromParent();
                 ParentBB->eraseFromParent(); // remove basic block que contem a condicao
                 count_deleted_instructions_on_basic_block_removal(BInst);
-                BasicBlocksEliminated++
+                BasicBlocksEliminated++;
 
                 for (BasicBlock *succ : successors(&BInst)) {
                     delete_basic_block(succ->getTerminator());
@@ -109,10 +109,11 @@ namespace {
         bool runOnFunction(Function &Fun) override {
             InterProceduralRA<Cousot> &ra = getAnalysis<InterProceduralRA<Cousot>>();
 
-            for (Function::iterator bb = F.begin(), bbEnd = F.end(); bb != bbEnd; ++bb) {
+            for (Function::iterator bb = Fun.begin(), bbEnd = Fun.end(); bb != bbEnd; ++bb) {
                 for (BasicBlock::iterator Inst = bb->begin(), IEnd = bb->end(); Inst != IEnd; ++Inst) {
-                    if (dyn_cast<ICmpInst>(Inst)) {
-                        handle_compare(Inst, ra);
+                    ICmpInst *I = dyn_cast<ICmpInst>(Inst)
+                    if (I) {
+                        handle_compare(I, ra);
                     }
                 }
             }
