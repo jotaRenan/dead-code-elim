@@ -22,7 +22,7 @@ STATISTIC(numsigmas, "Number of sigmas");
 STATISTIC(numphis, "Number of phis");
 
 void vSSA::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.addRequired<DominanceFrontier>();
+  AU.addRequired<DominanceFrontierWrapperPass>();
   AU.addRequired<DominatorTreeWrapperPass>();
 }
 
