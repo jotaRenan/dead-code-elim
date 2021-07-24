@@ -13,6 +13,10 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/IR/User.h"
+#include "llvm/PassAnalysisSupport.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/IRBuilder.h"
 
 #include "RangeAnalysis.h"
 
