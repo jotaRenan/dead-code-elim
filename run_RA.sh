@@ -33,7 +33,7 @@ else
     $OPT -load $RANGE_LIB -vssa $new_btcd_name -o $vssa_btcd_name
 
     # Run the range analysis client
-    $OPT -load $RANGE_LIB -client-ra $vssa_btcd_name -disable-output
+    $OPT -load $RANGE_LIB -deadCodeElim $vssa_btcd_name -disable-output
 
     # Producing a dot file for the vssa version of the bytecode file:
     $OPT -dot-cfg $vssa_btcd_name -disable-output
