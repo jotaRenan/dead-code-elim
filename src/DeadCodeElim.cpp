@@ -111,7 +111,7 @@ namespace {
                 count_deleted_instructions_on_basic_block_removal(ParentBB);
                 BasicBlocksEliminated++;
 
-                for (BasicBlock *succ : successors(&ParentBB)) {
+                for (BasicBlock *succ : successors(ParentBB)) {
                     delete_basic_block(succ->getTerminator());
                 }
             }
@@ -119,7 +119,6 @@ namespace {
 
 
         bool runOnFunction(Function &Fun) override {
-            return true;
             InterProceduralRA<Cousot> &ra = getAnalysis<InterProceduralRA<Cousot>>();
 
             for (Function::iterator bb = Fun.begin(), bbEnd = Fun.end(); bb != bbEnd; ++bb) {
@@ -130,6 +129,7 @@ namespace {
                     }
                 }
             }
+            return true;
         }
 
         void handle_compare(ICmpInst *ICM, InterProceduralRA<Cousot> &ra) {
