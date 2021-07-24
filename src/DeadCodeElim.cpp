@@ -5,16 +5,18 @@
 #include <sstream>
 
 #include "llvm/Pass.h"
+#include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/CFG.h"
 
 #include "RangeAnalysis.h"
+#define DEBUG_TYPE "dce-range-anal"
 
 using namespace llvm;
 using namespace std;
-using namespace RangeAnalysis;
+// using namespace RangeAnalysis;
 
 STATISTIC(InstructionsEliminated, "Number of instructions eliminated");
 STATISTIC(BasicBlocksEliminated,  "Number of basic blocks entirely eliminated");
@@ -109,6 +111,7 @@ namespace {
 
 
         bool runOnFunction(Function &Fun) override {
+            return true;
             InterProceduralRA<Cousot> &ra = getAnalysis<InterProceduralRA<Cousot>>();
 
             for (Function::iterator bb = Fun.begin(), bbEnd = Fun.end(); bb != bbEnd; ++bb) {
