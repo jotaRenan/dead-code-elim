@@ -21,6 +21,10 @@ STATISTIC(BasicBlocksEliminated,  "Number of basic blocks entirely eliminated");
 
 namespace {
     class DeadCodeElim : public FunctionPass {
+        static char ID;
+
+        DeadCodeElim() : FunctionPass(ID) {}
+        ~DeadCodeElim() {}
 
         BranchInst* cast_branch_instruction(Instruction *Inst) {
             return dyn_cast<BranchInst>(Inst);
