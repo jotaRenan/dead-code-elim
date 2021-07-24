@@ -10,6 +10,10 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/CFG.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/ADT/Statistic.h"
 
 #include "RangeAnalysis.h"
 #define DEBUG_TYPE "dce-range-anal"
