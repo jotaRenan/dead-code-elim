@@ -51,14 +51,20 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/TimeValue.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Timer.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/FormatProviders.h"
+#include <chrono>
+#include <ctime>
 #include <deque>
 #include <stack>
 #include <set>
 #include <sstream>
 #include <algorithm>
+#include <string>
+#include <chrono>
 
 using namespace llvm;
 
@@ -191,8 +197,6 @@ public:
   Range Or_conservative(const Range &other) const;
   Range Xor(const Range &other) const;
   Range truncate(unsigned bitwidth) const;
-  //	Range signExtend(unsigned bitwidth) const;
-  //	Range zeroExtend(unsigned bitwidth) const;
   Range sextOrTrunc(unsigned bitwidth) const;
   Range zextOrTrunc(unsigned bitwidth) const;
   Range intersectWith(const Range &other) const;
@@ -568,125 +572,11 @@ public:
   void clear();
 };
 
-/// This class can be used to gather statistics on running time
-/// and memory footprint. It had been developed before LLVM started
-/// to provide a class for this exact purpose. We'll keep using this
-/// because it works just fine and is well put together.
-class Profile {
-public:
-  class TimeValue : public sys::TimeValue {
-  public:
-    // Default constructor
-    TimeValue() : sys::TimeValue(0.0) {}
-
-    // Copy constructor related to parent class
-    TimeValue(const sys::TimeValue &from) : sys::TimeValue(0.0) {
-      seconds(from.seconds());
-      nanoseconds(from.nanoseconds());
-    }
-
-    // Copy constructor
-    TimeValue(const TimeValue &from) : sys::TimeValue(0.0) {
-      seconds(from.seconds());
-      nanoseconds(from.nanoseconds());
-    }
-
-    // Assignment operator
-    TimeValue &operator=(const TimeValue &from) {
-      if (*this == from) {
-        return *this;
-      }
-
-      seconds(from.seconds());
-      nanoseconds(from.nanoseconds());
-
-      return *this;
-    }
-
-    // Add operator
-    TimeValue operator+(const TimeValue &op) {
-      return static_cast<TimeValue>(static_cast<sys::TimeValue>(*this) +
-                                    static_cast<sys::TimeValue>(op));
-    }
-
-    TimeValue &operator+=(const TimeValue &op) {
-      TimeValue result = *this + op;
-      *this = result;
-      return *this;
-    }
-
-    // Sub operator
-    TimeValue operator-(const TimeValue &op) {
-      return static_cast<TimeValue>(static_cast<sys::TimeValue>(*this) -
-                                    static_cast<sys::TimeValue>(op));
-    }
-
-    TimeValue &operator-=(const TimeValue &op) {
-      TimeValue result = *this - op;
-      *this = result;
-      return *this;
-    }
-  };
-
-  // Map to store accumulated times
-  typedef StringMap<TimeValue> AccTimesMap;
-
-private:
-  AccTimesMap accumulatedtimes;
-  size_t memory;
-
-public:
-  Profile() : memory(0) {}
-
-  TimeValue timenow() {
-    TimeValue garbage, usertime;
-    sys::Process::GetTimeUsage(garbage, usertime, garbage);
-
-    return usertime;
-  }
-
-  void updateTime(StringRef key, const TimeValue &time) {
-    accumulatedtimes[key] += time;
-  }
-
-  double getTimeDouble(StringRef key) {
-    return accumulatedtimes[key].seconds() +
-           (0.001) * accumulatedtimes[key].milliseconds();
-  }
-
-  TimeValue getTime(StringRef key) { return accumulatedtimes[key]; }
-
-  void printTime(StringRef key) {
-    double time = getTimeDouble(key);
-    std::ostringstream formatted;
-    formatted << time;
-    errs() << formatted.str() << "\t - " << key << " elapsed time\n";
-  }
-
-  void setMemoryUsage() {
-    size_t newmemory = sys::Process::GetMallocUsage();
-    if (newmemory > memory) {
-      memory = newmemory;
-    }
-  }
-
-  size_t getMemoryUsage() { return memory; }
-
-  void printMemoryUsage() {
-    std::ostringstream formatted;
-    // Convert bytes to kilobytes
-    double mem = memory;
-    formatted << (mem / 1024);
-    errs() << formatted.str() << "\t - "
-           << "Memory used in KB\n";
-  }
-};
-
 // The VarNodes type.
 typedef DenseMap<const Value *, VarNode *> VarNodes;
 
 // The Operations type.
-typedef SmallPtrSet<BasicOp *, 64> GenOprs;
+typedef std::set<BasicOp *> GenOprs;
 
 // A map from variables to the operations where these variables are used.
 typedef DenseMap<const Value *, SmallPtrSet<BasicOp *, 8>> UseMap;
@@ -899,8 +789,7 @@ public:
   virtual APInt getMin() = 0;
   virtual APInt getMax() = 0;
   virtual Range getRange(const Value *v) = 0;
-  virtual ~RangeAnalysis() { /*errs() << "\nRangeAnalysis";*/
-  }
+  virtual ~RangeAnalysis() { }
 };
 
 template <class CGT>
@@ -925,7 +814,7 @@ template <class CGT>
 class IntraProceduralRA : public FunctionPass, RangeAnalysis {
 public:
   static char ID; // Pass identification, replacement for typeid
-  IntraProceduralRA() : FunctionPass(ID) {
+  IntraProceduralRA() : FunctionPass(ID){
     CG = NULL; /*errs() << "\nIntraProceduralRA ctor";*/
   }
   ~IntraProceduralRA();

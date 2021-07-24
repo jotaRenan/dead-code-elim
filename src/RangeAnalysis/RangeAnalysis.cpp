@@ -38,6 +38,10 @@ STATISTIC(numNotInt, "Number of variables that are not Integer.");
 STATISTIC(numOps, "Number of operations");
 STATISTIC(maxVisit, "Max number of times a value has been visited.");
 
+
+//The pass ID is no longer necessary in LLVM 8.0. Use it in lower version:
+//InterProceduralRA<Cousot>::ID = 0;
+
 // The number of bits needed to store the largest variable of the function
 // (APInt).
 unsigned MAX_BIT_INT = 1;
@@ -63,11 +67,6 @@ const std::string sigmaString = "vSSA_sigma";
 // Used to print pseudo-edges in the Constraint Graph dot
 std::string pestring;
 raw_string_ostream pseudoEdgesString(pestring);
-
-#ifdef STATS
-// Used to profile
-Profile prof;
-#endif
 
 // Print name of variable according to its type
 static void printVarName(const Value *V, raw_ostream &OS) {
@@ -150,10 +149,6 @@ void RangeAnalysis::updateMinMax(unsigned maxBitWidth) {
   Zero = APInt(MAX_BIT_INT, 0, true);
 }
 
-// unsigned RangeAnalysis::getBitWidth() {
-//	return MAX_BIT_INT;
-//}
-
 // ========================================================================== //
 // IntraProceduralRangeAnalysis
 // ========================================================================== //
@@ -172,18 +167,8 @@ template <class CGT> bool IntraProceduralRA<CGT>::runOnFunction(Function &F) {
   MAX_BIT_INT = getMaxBitWidth(F);
   updateMinMax(MAX_BIT_INT);
 
-// Build the graph and find the intervals of the variables.
-#ifdef STATS
-  Profile::TimeValue before = prof.timenow();
-#endif
   CG->buildGraph(F);
   CG->buildVarNodes();
-#ifdef STATS
-  Profile::TimeValue elapsed = prof.timenow() - before;
-  prof.updateTime("BuildGraph", elapsed);
-
-  prof.setMemoryUsage();
-#endif
 #ifdef PRINT_DEBUG
   CG->printToFile(F, "/tmp/" + F.getName() + "cgpre.dot");
   errs() << "Analyzing function " << F.getName() << ":\n";
@@ -202,31 +187,6 @@ void IntraProceduralRA<CGT>::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 template <class CGT> IntraProceduralRA<CGT>::~IntraProceduralRA() {
-#ifdef STATS
-  prof.printTime("BuildGraph");
-  prof.printTime("Nuutila");
-  prof.printTime("SCCs resolution");
-  prof.printTime("ComputeStats");
-  prof.printMemoryUsage();
-
-  std::ostringstream formated;
-  formated << 100 * (1.0 - ((double)(needBits) / usedBits));
-  errs() << formated.str() << "\t - "
-         << " Percentage of reduction\n";
-
-  // max visit computation
-  unsigned maxtimes = 0;
-  for (DenseMap<const Value *, unsigned>::iterator fmit = FerMap.begin(),
-                                                   fmend = FerMap.end();
-       fmit != fmend; ++fmit) {
-    unsigned times = fmit->second;
-    if (times > maxtimes) {
-      maxtimes = times;
-    }
-  }
-  maxVisit = maxtimes;
-#endif
-  //	delete CG;
 }
 
 // ========================================================================== //
@@ -264,9 +224,6 @@ template <class CGT> bool InterProceduralRA<CGT>::runOnModule(Module &M) {
   updateMinMax(MAX_BIT_INT);
 
 // Build the Constraint Graph by running on each function
-#ifdef STATS
-  Profile::TimeValue before = prof.timenow();
-#endif
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
     // If the function is only a declaration, or if it has variable number of
     // arguments, do not match
@@ -278,12 +235,6 @@ template <class CGT> bool InterProceduralRA<CGT>::runOnModule(Module &M) {
   }
   CG->buildVarNodes();
 
-#ifdef STATS
-  Profile::TimeValue elapsed = prof.timenow() - before;
-  prof.updateTime("BuildGraph", elapsed);
-
-  prof.setMemoryUsage();
-#endif
 #ifdef PRINT_DEBUG
   std::string moduleIdentifier = M.getModuleIdentifier();
   int pos = moduleIdentifier.rfind("/");
@@ -456,30 +407,6 @@ void InterProceduralRA<CGT>::MatchParametersAndReturnValues(
 }
 
 template <class CGT> InterProceduralRA<CGT>::~InterProceduralRA() {
-#ifdef STATS
-  prof.printTime("BuildGraph");
-  prof.printTime("Nuutila");
-  prof.printTime("SCCs resolution");
-  prof.printTime("ComputeStats");
-  prof.printMemoryUsage();
-
-  std::ostringstream formated;
-  formated << 100 * (1.0 - ((double)(needBits) / usedBits));
-  errs() << formated.str() << "\t - "
-         << " Percentage of reduction\n";
-
-  // max visit computation
-  unsigned maxtimes = 0;
-  for (DenseMap<const Value *, unsigned>::iterator fmit = FerMap.begin(),
-                                                   fmend = FerMap.end();
-       fmit != fmend; ++fmit) {
-    unsigned times = fmit->second;
-    if (times > maxtimes) {
-      maxtimes = times;
-    }
-  }
-  maxVisit = maxtimes;
-#endif
 }
 
 template <class CGT> char IntraProceduralRA<CGT>::ID = 0;
@@ -2121,19 +2048,6 @@ void ConstraintGraph::addSigmaOp(const PHINode *Sigma) {
 /// Creates varnodes for all operands of I that are constants
 /// This steps ensures that all constants in the program's body
 /// get a corresponding var node with a range
-/*
-   void ConstraintGraph::createNodesForConstants(const Instruction *I) {
-   for (User::const_op_iterator oit = I->op_begin(), oend = I->op_end();
-   oit != oend; ++oit) {
-   const Value *V = *oit;
-   const ConstantInt *CI = dyn_cast<ConstantInt>(V);
-
-   if (CI) {
-   addVarNode(CI);
-   }
-   }
-   }
-   */
 void ConstraintGraph::buildOperations(const Instruction *I) {
 
 #ifdef OVERFLOWHANDLER
@@ -2205,7 +2119,7 @@ void ConstraintGraph::buildValueSwitchMap(const SwitchInst *sw) {
     if (CI == sw->case_default())
       continue;
 
-    const ConstantInt *constant = CI.getCaseValue();
+    const ConstantInt *constant = CI->getCaseValue();
 
     APInt sigMin = constant->getValue();
     APInt sigMax = sigMin;
@@ -2216,10 +2130,6 @@ void ConstraintGraph::buildValueSwitchMap(const SwitchInst *sw) {
     if (sigMax.getBitWidth() < MAX_BIT_INT) {
       sigMax = sigMax.sext(MAX_BIT_INT);
     }
-
-    //		if (sigMax.slt(sigMin)) {
-    //			sigMax = APInt::getSignedMaxValue(MAX_BIT_INT);
-    //		}
 
     Range Values = Range(sigMin, sigMax);
 
@@ -2403,7 +2313,7 @@ void ConstraintGraph::buildValueBranchMap(const BranchInst *br) {
 void ConstraintGraph::buildValueMaps(const Function &F) {
   for (Function::const_iterator iBB = F.begin(), eBB = F.end(); iBB != eBB;
        ++iBB) {
-    const TerminatorInst *ti = iBB->getTerminator();
+    const Instruction *ti = iBB->getTerminator();
     const BranchInst *br = dyn_cast<BranchInst>(ti);
     const SwitchInst *sw = dyn_cast<SwitchInst>(ti);
 
@@ -2414,12 +2324,6 @@ void ConstraintGraph::buildValueMaps(const Function &F) {
     }
   }
 }
-
-// void ConstraintGraph::clearValueMaps()
-//{
-//	valuesSwitchMap.clear();
-//	valuesBranchMap.clear();
-//}
 
 /*
  * Comparison function used to sort the constant vector
@@ -2597,8 +2501,6 @@ void ConstraintGraph::buildGraph(const Function &F) {
   for (const_inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
     const Instruction *inst = (&*I);
     const Type *ty = inst->getType();
-
-    // createNodesForConstants(inst);
 
     // Only integers are dealt with
     if (!ty->isIntegerTy()) {
@@ -2849,13 +2751,6 @@ void ConstraintGraph::update(
     const Value *V = *actv.begin();
     actv.erase(V);
 
-#ifdef STATS
-    // Updates Fermap
-    if (meet == Meet::narrow) {
-      FerMap[V]++;
-    }
-#endif
-
     // The use list.
     const SmallPtrSet<BasicOp *, 8> &L = compUseMap.find(V)->second;
     SmallPtrSetIterator<BasicOp *> bgn = L.begin(), end = L.end();
@@ -2895,19 +2790,10 @@ void ConstraintGraph::update(unsigned nIterations, const UseMap &compUseMap,
 void ConstraintGraph::findIntervals() {
 //	clearValueMaps();
 
-// Builds symbMap
-#ifdef STATS
-  Profile::TimeValue before = prof.timenow();
-#endif
   buildSymbolicIntersectMap();
 
   // List of SCCs
   Nuutila sccList(&vars, &useMap, &symbMap);
-#ifdef STATS
-  Profile::TimeValue after = prof.timenow();
-  Profile::TimeValue elapsed = after - before;
-  prof.updateTime("Nuutila", elapsed);
-#endif
   // STATS
   numSCCs += sccList.worklist.size();
 #ifdef SCC_DEBUG
@@ -2915,10 +2801,6 @@ void ConstraintGraph::findIntervals() {
 #endif
 
 // For each SCC in graph, do the following
-#ifdef STATS
-  before = prof.timenow();
-#endif
-
   for (Nuutila::iterator nit = sccList.begin(), nend = sccList.end();
        nit != nend; ++nit) {
     SmallPtrSet<VarNode *, 32> &component = *sccList.components[*nit];
@@ -2977,7 +2859,6 @@ void ConstraintGraph::findIntervals() {
         }
       }
 
-// printResultIntervals();
 #ifdef PRINT_DEBUG
       if (func)
         printToFile(*func, "/tmp/" + func->getName() + "cgint.dot");
@@ -2991,20 +2872,8 @@ void ConstraintGraph::findIntervals() {
     propagateToNextSCC(component);
   }
 
-#ifdef STATS
-  elapsed = prof.timenow() - before;
-  prof.updateTime("SCCs resolution", elapsed);
-#endif
-
 #ifdef SCC_DEBUG
   ASSERT(numberOfSCCs == 0, "Not all SCCs have been visited")
-#endif
-
-#ifdef STATS
-  before = prof.timenow();
-  computeStats();
-  elapsed = prof.timenow() - before;
-  prof.updateTime("ComputeStats", elapsed);
 #endif
 }
 
@@ -3155,7 +3024,6 @@ void ConstraintGraph::computeStats() {
     // We only count the instructions that have uses.
     if (vbgn->first->getNumUses() == 0) {
       ++numZeroUses;
-      // continue;
     }
 
     // ConstantInts must NOT be counted!!
@@ -3238,36 +3106,6 @@ void ConstraintGraph::computeStats() {
   numVars += this->vars.size();
   numOps += this->oprs.size();
 }
-
-/*
- *	This method builds a map that binds each variable to the operation in
- *  which this variable is defined.
- */
-
-// DefMap ConstraintGraph::buildDefMap(const SmallPtrSet<VarNode*, 32>
-// &component)
-//{
-//	std::deque<BasicOp*> list;
-//	for (GenOprs::iterator opit = oprs.begin(), opend = oprs.end(); opit !=
-//opend; ++opit) {
-//		BasicOp *op = *opit;
-//
-//		if (std::find(component.begin(), component.end(), op->getSink())
-//!= component.end()) {
-//			list.push_back(op);
-//		}
-//	}
-//
-//	DefMap defMap;
-//
-//	for (std::deque<BasicOp*>::iterator opit = list.begin(), opend =
-//list.end(); opit != opend; ++opit) {
-//		BasicOp *op = *opit;
-//		defMap[op->getSink()] = op;
-//	}
-//
-//	return defMap;
-//}
 
 /*
  *	This method builds a map that binds each variable label to the
@@ -3391,19 +3229,7 @@ void Nuutila::addControlDependenceEdges(SymbMap *symbMap, UseMap *useMap,
       VarNodes::iterator source_value = vars->find(sit->first);
       VarNode *source = source_value->second;
 
-      //			if (source_value != vars.end()) {
-      //				source = vars.find(sit->first)->second;
-      //			}
-
-      //			if (source == NULL) {
-      //				continue;
-      //			}
-
       BasicOp *cdedge = new ControlDep((*opit)->getSink(), source);
-      //			BasicOp *cdedge = new
-      //ControlDep((cast<UnaryOp>(*opit))->getSource(), source);
-
-      //(*useMap)[(*opit)->getSink()->getValue()].insert(cdedge);
       (*useMap)[sit->first].insert(cdedge);
     }
   }
@@ -3523,7 +3349,6 @@ void Nuutila::visit(Value *V, std::stack<Value *> &stack, UseMap *useMap) {
 Nuutila::Nuutila(VarNodes *varNodes, UseMap *useMap, SymbMap *symbMap,
                  bool single) {
   if (single) {
-    /* FERNANDO */
     SmallPtrSet<VarNode *, 32> *SCC = new SmallPtrSet<VarNode *, 32>;
     for (VarNodes::iterator vit = varNodes->begin(), vend = varNodes->end();
          vit != vend; ++vit) {

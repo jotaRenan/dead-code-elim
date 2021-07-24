@@ -10,7 +10,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/CFG.h"
 
-#include "range-analysis/RangeAnalysis.h"
+#include "RangeAnalysis/RangeAnalysis.h"
 
 using namespace llvm;
 using namespace std;
