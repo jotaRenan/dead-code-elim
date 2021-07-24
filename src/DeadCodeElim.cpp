@@ -214,6 +214,11 @@ namespace {
                     break;
             }
         }
+    
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+        AU.setPreservesAll();
+        AU.addRequired<InterProceduralRA<Cousot>>();
+    }
   };
 }
 
