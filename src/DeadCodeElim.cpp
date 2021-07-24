@@ -109,11 +109,10 @@ namespace {
         bool runOnFunction(Function &Fun) override {
             InterProceduralRA<Cousot> &ra = getAnalysis<InterProceduralRA<Cousot>>();
 
-            for (auto& BB : Fun) {
-                for (auto& Inst : BB) {
-                    ICmpInst *I = dyn_cast<ICmpInst>(Inst)
-                    if (I) {
-                        handle_compare(I, ra);
+            for (Function::iterator bb = F.begin(), bbEnd = F.end(); bb != bbEnd; ++bb) {
+                for (BasicBlock::iterator Inst = bb->begin(), IEnd = bb->end(); Inst != IEnd; ++Inst) {
+                    if (dyn_cast<ICmpInst>(Inst)) {
+                        handle_compare(Inst, ra);
                     }
                 }
             }
