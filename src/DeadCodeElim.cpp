@@ -34,6 +34,8 @@ bool DeadCodeElim::runOnFunction(Function &Fun) {
             }
         }
     }
+    
+
     int finalBlocksCount, finalInstsCount;
     countBlocksAndInstructions(Fun, finalBlocksCount, finalInstsCount);
     BasicBlocksEliminated = initialBlocksCount - finalBlocksCount;
@@ -147,28 +149,30 @@ void DeadCodeElim::delete_basic_block(Instruction *Inst) {
         // InstructionsEliminated++;
 
         // remove basic block que contem a condicao
-        BB->removeFromParent(); 
-        ConstantFoldTerminator(BB, true, NULL); 
+        ConstantFoldTerminator(BB, true); 
+        for (BasicBlock *succ : successors(BB)) {
+            succ->removePredecessor(BB);
+            delete_basic_block(succ->getTerminator());
+        }
         delete_instructions(BB);
+        BB->removeFromParent(); 
         // BasicBlocksEliminated++;
 
-        // for (BasicBlock *succ : successors(ParentBB)) {
-        //     delete_basic_block(succ->getTerminator());
-        // }
+        
         
     }
 }
 
 void DeadCodeElim::merge_basic_blocks(BasicBlock *B1, BasicBlock *B2) {
-    if (!has_unique_successor(B2)) return;
+    // if (!has_unique_successor(B2)) return;
     
     // BasicBlocksEliminated++;
     BasicBlock* B2Succ = B2->getUniqueSuccessor();
     
-    B1->getTerminator()->eraseFromParent();
-    IRBuilder<> Builder(B1);
+    // B1->getTerminator()->removeFromParent();
+    // // IRBuilder<> Builder(B1);
 
-    Builder.CreateBr(B2);
+    // Builder.CreateBr(B2);
     MergeBlockIntoPredecessor(B2);
 
     merge_basic_blocks(B1, B2Succ);
@@ -180,16 +184,16 @@ void DeadCodeElim::delete_path(Instruction *Inst, int indexTakenPath, int indexN
     if (!BInst) return;
     cout << "\nindo deletar";
     
-    BasicBlock *ParentBB = BInst->getParent();
+    BasicBlock *BB = BInst->getParent();
     BasicBlock *takenPath = BInst->getSuccessor(indexTakenPath);
     BasicBlock *notTakenPath = BInst->getSuccessor(indexNotTakenPath);
     
-    notTakenPath->removePredecessor(ParentBB);
+    notTakenPath->removePredecessor(BB);
     BranchInst *newBranch = BranchInst::Create(takenPath);
     ReplaceInstWithInst(BInst, newBranch);
 
     delete_basic_block(notTakenPath->getTerminator());
-    merge_basic_blocks(ParentBB, takenPath);
+    // merge_basic_blocks(ParentBB, takenPath);
 }
 
 BranchInst* DeadCodeElim::cast_branch_instruction(Instruction *Inst) {
