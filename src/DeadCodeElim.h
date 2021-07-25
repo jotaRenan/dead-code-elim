@@ -35,12 +35,12 @@ class DeadCodeElim : public FunctionPass {
         void delete_path(Instruction *Inst, int indexTakenPath, int indexNotTakenPath);
         void merge_basic_blocks(BasicBlock *B1, BasicBlock *B2);
         void delete_basic_block(Instruction *Inst);
+        void delete_instructions(BasicBlock *BB);
 
         bool has_unique_successor(BasicBlock *BB);
         void delete_false_path(Instruction *Inst);
         void delete_true_path(Instruction *Inst);
         BranchInst* cast_branch_instruction(Instruction *Inst);
-        void count_deleted_instructions_on_basic_block_removal(BasicBlock *BB);
 };
 
 #endif

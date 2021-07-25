@@ -8,8 +8,22 @@ using namespace std;
 STATISTIC(InstructionsEliminated, "Number of instructions eliminated");
 STATISTIC(BasicBlocksEliminated,  "Number of basic blocks entirely eliminated");
 
+void countBlocksAndInstructions(Function &Fun, int &blocks, int &insts) {
+    blocks = 0;
+    insts = 0;
+    for (Function::iterator bb = Fun.begin(), bbEnd = Fun.end(); bb != bbEnd; ++bb) {
+        blocks++;
+        for (BasicBlock::iterator Inst = bb->begin(), IEnd = bb->end(); Inst != IEnd; ++Inst) {
+            insts++;
+        }
+    }
+}
+
 bool DeadCodeElim::runOnFunction(Function &Fun) {
     InterProceduralRA<Cousot> &ra = getAnalysis<InterProceduralRA<Cousot>>();
+
+    int initialBlocksCount, initialInstsCount;
+    countBlocksAndInstructions(Fun, initialBlocksCount, initialInstsCount);
     for (Function::iterator bb = Fun.begin(), bbEnd = Fun.end(); bb != bbEnd; ++bb) {
         for (BasicBlock::iterator Inst = bb->begin(), IEnd = bb->end(); Inst != IEnd; ++Inst) {
             printf("\navaliando instrucao");
@@ -20,6 +34,10 @@ bool DeadCodeElim::runOnFunction(Function &Fun) {
             }
         }
     }
+    int finalBlocksCount, finalInstsCount;
+    countBlocksAndInstructions(Fun, finalBlocksCount, finalInstsCount);
+    BasicBlocksEliminated = initialBlocksCount - finalBlocksCount;
+    InstructionsEliminated = initialInstsCount - finalInstsCount;
     printf("\n\nterminando os trabalhos\n\n");
     return true;
 }
@@ -117,28 +135,34 @@ void DeadCodeElim::handle_compare(ICmpInst *ICM, InterProceduralRA<Cousot> &ra) 
 }
 
 void DeadCodeElim::delete_basic_block(Instruction *Inst) {
-    BasicBlock *ParentBB = Inst->getParent();
+    BasicBlock *BB = Inst->getParent();
     
-    if (ParentBB->hasNPredecessors(0)) { 
+    if (BB->hasNPredecessors(0)) { 
         BranchInst *BInst = cast_branch_instruction(Inst);
         if (!BInst) return;
         
-        BInst->eraseFromParent();
-        // remove basic block que contem a condicao
-        ParentBB->eraseFromParent(); 
-        count_deleted_instructions_on_basic_block_removal(ParentBB);
-        BasicBlocksEliminated++;
+        // BInst->removeFromParent();
+        // BInst->replaceAllUsesWith(UndefValue::get(BInst->getType()));
+        // BInst->dropAllReferences();
+        // InstructionsEliminated++;
 
-        for (BasicBlock *succ : successors(ParentBB)) {
-            delete_basic_block(succ->getTerminator());
-        }
+        // remove basic block que contem a condicao
+        BB->removeFromParent(); 
+        ConstantFoldTerminator(BB, true, NULL); 
+        delete_instructions(BB);
+        // BasicBlocksEliminated++;
+
+        // for (BasicBlock *succ : successors(ParentBB)) {
+        //     delete_basic_block(succ->getTerminator());
+        // }
+        
     }
 }
 
 void DeadCodeElim::merge_basic_blocks(BasicBlock *B1, BasicBlock *B2) {
     if (!has_unique_successor(B2)) return;
     
-    BasicBlocksEliminated++;
+    // BasicBlocksEliminated++;
     BasicBlock* B2Succ = B2->getUniqueSuccessor();
     
     B1->getTerminator()->eraseFromParent();
@@ -188,12 +212,15 @@ bool DeadCodeElim::has_unique_successor(BasicBlock *BB) {
     return BB->getUniqueSuccessor() != nullptr;
 }
 
-void DeadCodeElim::count_deleted_instructions_on_basic_block_removal(BasicBlock *BB) {
-    // instrucao de chamada ao basic block
-    InstructionsEliminated++;
-
-    for (Instruction &Inst: *BB) {
-        InstructionsEliminated++;
+void DeadCodeElim::delete_instructions(BasicBlock *BB) {
+    while (!BB->empty()) {
+        Instruction &Inst = BB->back();
+        if (!Inst.use_empty()) {
+            Inst.replaceAllUsesWith(UndefValue::get(Inst.getType()));
+            Inst.dropAllReferences();
+        }
+        BB->getInstList().pop_back();
+        // InstructionsEliminated++;
     }
 }
 
