@@ -33,7 +33,7 @@ class DeadCodeElim : public FunctionPass {
     private:
         void handle_compare(ICmpInst *ICM, InterProceduralRA<Cousot> &ra);
         void delete_path(Instruction *Inst, int indexTakenPath, int indexNotTakenPath);
-        void merge_basic_blocks(BasicBlock *B1, BasicBlock *B2);
+        void merge_basic_blocks(BasicBlock *BB);
         void delete_basic_block(Instruction *Inst);
         void delete_instructions(BasicBlock *BB);
 

@@ -26,21 +26,17 @@ bool DeadCodeElim::runOnFunction(Function &Fun) {
     countBlocksAndInstructions(Fun, initialBlocksCount, initialInstsCount);
     for (Function::iterator bb = Fun.begin(), bbEnd = Fun.end(); bb != bbEnd; ++bb) {
         for (BasicBlock::iterator Inst = bb->begin(), IEnd = bb->end(); Inst != IEnd; ++Inst) {
-            printf("\navaliando instrucao");
             ICmpInst *I = dyn_cast<ICmpInst>(Inst);
             if (I) {
-                printf("\ninstrucao eh de comparacao");
                 handle_compare(I, ra);
             }
         }
     }
-    
 
     int finalBlocksCount, finalInstsCount;
     countBlocksAndInstructions(Fun, finalBlocksCount, finalInstsCount);
     BasicBlocksEliminated = initialBlocksCount - finalBlocksCount;
     InstructionsEliminated = initialInstsCount - finalInstsCount;
-    printf("\n\nterminando os trabalhos\n\n");
     return true;
 }
 
@@ -51,20 +47,15 @@ void DeadCodeElim::handle_compare(ICmpInst *ICM, InterProceduralRA<Cousot> &ra) 
         case CmpInst::ICMP_SLT:
         case CmpInst::ICMP_ULT:
             // lidar com <
-            printf("\nLIDANDO COM <");
             r1.print(errs());
             r2.print(errs());
             errs() <<"\n";
             if (r1.getUpper().slt(r2.getLower())) { // sempre da true entao podemos 
-                printf("\nSEMPRE DA TRU");
                 // remover o false-branch
                 delete_false_path(ICM);
             } else if (r1.getLower().sge(r2.getUpper())) { // sempre da false entao podemos
-                printf("\nSEMPRE DA FALS");
                 // remover o true-branch
                 delete_true_path(ICM);
-            } else {
-                printf("\nNEM SEMPRE DA FALS NEM SEMPRE DA TRU");
             }
             break;
         case CmpInst::ICMP_SLE:
@@ -132,7 +123,7 @@ void DeadCodeElim::handle_compare(ICmpInst *ICM, InterProceduralRA<Cousot> &ra) 
             }
             break;
         default:
-            printf("\nDefault switch case");
+            break;
     }
 }
 
@@ -142,13 +133,7 @@ void DeadCodeElim::delete_basic_block(Instruction *Inst) {
     if (BB->hasNPredecessors(0)) { 
         BranchInst *BInst = cast_branch_instruction(Inst);
         if (!BInst) return;
-        
-        // BInst->removeFromParent();
-        // BInst->replaceAllUsesWith(UndefValue::get(BInst->getType()));
-        // BInst->dropAllReferences();
-        // InstructionsEliminated++;
 
-        // remove basic block que contem a condicao
         ConstantFoldTerminator(BB, true); 
         for (BasicBlock *succ : successors(BB)) {
             succ->removePredecessor(BB);
@@ -156,44 +141,30 @@ void DeadCodeElim::delete_basic_block(Instruction *Inst) {
         }
         delete_instructions(BB);
         BB->removeFromParent(); 
-        // BasicBlocksEliminated++;
-
-        
-        
     }
 }
 
-void DeadCodeElim::merge_basic_blocks(BasicBlock *B1, BasicBlock *B2) {
-    // if (!has_unique_successor(B2)) return;
-    
-    // BasicBlocksEliminated++;
-    BasicBlock* B2Succ = B2->getUniqueSuccessor();
-    
-    // B1->getTerminator()->removeFromParent();
-    // // IRBuilder<> Builder(B1);
-
-    // Builder.CreateBr(B2);
-    MergeBlockIntoPredecessor(B2);
-
-    merge_basic_blocks(B1, B2Succ);
+void DeadCodeElim::merge_basic_blocks(BasicBlock *BB) {
+    MergeBlockIntoPredecessor(BB);
+    for (BasicBlock *succ : successors(BB)) {
+        MergeBlockIntoPredecessor(succ);
+    }
 }
 
 void DeadCodeElim::delete_path(Instruction *Inst, int indexTakenPath, int indexNotTakenPath) {
     BranchInst *BInst = cast_branch_instruction(Inst->getNextNode());
-    cout << "\nverificando delecao";
     if (!BInst) return;
-    cout << "\nindo deletar";
     
     BasicBlock *BB = BInst->getParent();
     BasicBlock *takenPath = BInst->getSuccessor(indexTakenPath);
     BasicBlock *notTakenPath = BInst->getSuccessor(indexNotTakenPath);
-    
+
     notTakenPath->removePredecessor(BB);
     BranchInst *newBranch = BranchInst::Create(takenPath);
     ReplaceInstWithInst(BInst, newBranch);
 
     delete_basic_block(notTakenPath->getTerminator());
-    // merge_basic_blocks(ParentBB, takenPath);
+    merge_basic_blocks(BB);
 }
 
 BranchInst* DeadCodeElim::cast_branch_instruction(Instruction *Inst) {
