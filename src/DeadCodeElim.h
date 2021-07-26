@@ -37,10 +37,9 @@ class DeadCodeElim : public FunctionPass {
         void delete_basic_block(Instruction *Inst);
         void delete_instructions(BasicBlock *BB);
 
-        bool has_unique_successor(BasicBlock *BB);
+        void countBlocksAndInstructions(Function &Fun, int &blocks, int &insts);
         void delete_false_path(Instruction *Inst);
         void delete_true_path(Instruction *Inst);
-        BranchInst* cast_branch_instruction(Instruction *Inst);
 };
 
 #endif
